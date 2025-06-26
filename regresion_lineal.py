@@ -23,7 +23,7 @@ url = st.text_input(
     label_visibility="collapsed"
 )
 
-if st.button("📥 Load") and url:
+if st.button("⏫ Load") and url:
     try:
         if url.endswith('.csv'):
             df = pd.read_csv(url)
@@ -44,11 +44,11 @@ if st.session_state.dataset_loaded:
     df = st.session_state.df
 
     st.subheader("📋 Dataset Overview")
-    st.write(f"🔢 Rows: {df.shape[0]}")
-    st.write(f"📁 Columns: {df.shape[1]}")
+    st.write(f"📄​ Rows: {df.shape[0]}")
+    st.write(f"📄​ Columns: {df.shape[1]}")
     st.dataframe(df.head())
 
-    st.subheader("📚 Column Types")
+    st.subheader("📋 Column Types")
     dtypes = df.dtypes.reset_index()
     dtypes.columns = ['Column', 'Type']
     st.dataframe(dtypes)
@@ -69,7 +69,7 @@ if st.session_state.dataset_loaded:
         max_selections=3
     )
 
-    if st.button("📊 Generate correlation and pairplot"):
+    if st.button("📉​ Generate correlation and pairplot"):
         if selected_target and selected_features:
             st.session_state.features = selected_features
             st.session_state.target = selected_target
@@ -87,7 +87,7 @@ if st.session_state.dataset_loaded:
         sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", ax=ax1)
         st.pyplot(fig1)
 
-        st.subheader("🔗 Pairplot")
+        st.subheader("📈 Pairplot")
         pair_fig = sns.pairplot(df[selected]).fig
         st.pyplot(pair_fig)
 
@@ -122,7 +122,7 @@ if st.session_state.dataset_loaded:
 
                 weights = np.zeros((X_train.shape[1], 1))
                 bias = 0.0
-                rmse_list = []
+                mse_list = []
 
                 for epoch in range(int(epochs)):
                     indices = np.random.permutation(X_train.shape[0])
@@ -140,33 +140,37 @@ if st.session_state.dataset_loaded:
                         bias -= learning_rate * db
 
                     y_val_pred = X_val @ weights + bias
-                    rmse = np.sqrt(np.mean((y_val - y_val_pred) ** 2))
-                    rmse_list.append(rmse)
+                    mse = np.mean((y_val - y_val_pred) ** 2)
+                    mse_list.append(mse)
 
-                best_epoch = np.argmin(rmse_list) + 1
-                best_rmse = rmse_list[best_epoch - 1]
-                rmse_improvement = rmse_list[-2] - rmse_list[-1] if len(rmse_list) > 1 else 0
+                best_epoch = np.argmin(mse_list) + 1
+                best_mse = mse_list[best_epoch - 1]
+                mse_improvement = mse_list[-2] - mse_list[-1] if len(mse_list) > 1 else 0
 
-                st.subheader("📉 Loss Curve (RMSE per Epoch)")
+                st.subheader("💻​​ Loss Curve (MSE per Epoch)")
                 fig2, ax2 = plt.subplots()
-                ax2.plot(rmse_list)
+                ax2.plot(mse_list)
                 ax2.set_xlabel("Epochs")
-                ax2.set_ylabel("RMSE")
+                ax2.set_ylabel("MSE")
                 st.pyplot(fig2)
 
-                st.subheader("📈 Generated Model")
-                formula = f"Y = {round(bias, 4)}"
-                for coef, name in zip(weights.flatten(), features):
+                # 🔄 Convert weights & bias to original scale
+                original_weights = weights / scaler.scale_.reshape(-1, 1)
+                original_bias = bias - (scaler.mean_ @ original_weights).item()
+
+                st.subheader("💻​ Generated Model (Original Scale)")
+                formula = f"Y = {round(original_bias, 4)}"
+                for coef, name in zip(original_weights.flatten(), features):
                     formula += f" + ({round(coef, 4)} × {name})"
                 st.markdown(f"**{formula}**")
 
-                st.markdown(f"✅ Best model achieved at epoch **{best_epoch}** with RMSE of **{round(best_rmse, 4)}**")
-                st.markdown(f"📉 Final RMSE improvement over previous epoch: **{round(rmse_improvement, 8)}**")
+                st.markdown(f"🟢​​ Best model achieved at epoch **{best_epoch}** with MSE of **{round(best_mse, 4)}**")
+                st.markdown(f"🟢​ Final MSE improvement over previous epoch: **{round(mse_improvement, 8)}**")
 
                 if len(features) == 1:
                     fig3, ax3 = plt.subplots()
                     ax3.scatter(X[:, 0], y, label='Actual data')
-                    pred_line = X_scaled[:, 0].reshape(-1, 1) @ weights + bias
+                    pred_line = X[:, 0].reshape(-1, 1) * original_weights[0] + original_bias
                     ax3.plot(X[:, 0], pred_line, color='red', label='Regression line')
                     ax3.set_xlabel(features[0])
                     ax3.set_ylabel(target)
@@ -179,7 +183,7 @@ if st.session_state.dataset_loaded:
                     "Predicted": y_val_pred.flatten()
                 })
                 st.dataframe(df_pred.head(10))
-                st.write(f"📌 Final RMSE: {round(rmse_list[-1], 4)}")
+                st.write(f"📌 Final MSE: {round(mse_list[-1], 4)}")
 
 st.markdown("""
 <hr style='border:1px solid #ddd; margin-top: 40px; margin-bottom:10px'>
